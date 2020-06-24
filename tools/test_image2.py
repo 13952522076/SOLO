@@ -219,6 +219,7 @@ def main():
 
     img = mmcv.imread(args.file)
     device = next(model.parameters()).device  # model device
+    print(device)
     # build the data pipeline
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)

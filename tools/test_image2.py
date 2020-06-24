@@ -13,6 +13,7 @@ from mmcv.runner import init_dist, get_dist_info, load_checkpoint
 from mmdet.core import coco_eval, results2json, wrap_fp16_model, tensor2imgs, get_classes
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
+from mmdet.apis.inference import *
 import cv2
 
 import numpy as np
@@ -194,6 +195,7 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--file', help='Image file')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -202,94 +204,35 @@ def parse_args():
 
 def main():
     args = parse_args()
-
-    assert args.out or args.show or args.json_out, \
-        ('Please specify at least one operation (save or show the results) '
-         'with the argument "--out" or "--show" or "--json_out"')
-
-    if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
-        raise ValueError('The output file must be a pkl file.')
-
-    if args.json_out is not None and args.json_out.endswith('.json'):
-        args.json_out = args.json_out[:-5]
-
     cfg = mmcv.Config.fromfile(args.config)
-    # set cudnn_benchmark
-    if cfg.get('cudnn_benchmark', False):
-        torch.backends.cudnn.benchmark = True
-    cfg.model.pretrained = None
-    cfg.data.test.test_mode = True
-
-    # init distributed env first, since logger depends on the dist info.
-    if args.launcher == 'none':
-        distributed = False
-    else:
-        distributed = True
-        init_dist(args.launcher, **cfg.dist_params)
-
-    # build the dataloader
-    # TODO: support multiple images per gpu (only minor changes are needed)
-    dataset = build_dataset(cfg.data.personal)
-    data_loader = build_dataloader(
-        dataset,
-        imgs_per_gpu=1,
-        workers_per_gpu=cfg.data.workers_per_gpu,
-        dist=distributed,
-        shuffle=False)
-
-    # build the model and load checkpoint
-    model = build_detector(cfg.model, train_cfg=None, test_cfg=cfg.test_cfg)
-    # fp16_cfg = cfg.get('fp16', None)
-    # if fp16_cfg is not None:
-    #     wrap_fp16_model(model)
+    dataset = build_dataset(cfg.data.test)
+    model = build_detector(cfg.model, test_cfg=cfg.test_cfg)
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
-    # old versions did not save class info in checkpoints, this walkaround is
-    # for backward compatibility
     if 'CLASSES' in checkpoint['meta']:
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         model.CLASSES = dataset.CLASSES
 
-    assert not distributed
-    if not distributed:
-        model = MMDataParallel(model, device_ids=[0])
-        outputs = single_gpu_test(model, data_loader, args, cfg=cfg)
-    else:
-        model = MMDistributedDataParallel(model.cuda())
-        outputs = multi_gpu_test(model, data_loader, args.tmpdir)
+    class_num = 1000  # ins
+    colors = [(np.random.random((1, 3)) * 255).tolist()[0] for i in range(class_num)]
 
-    rank, _ = get_dist_info()
-    # if args.out and rank == 0:
-    #     # print('\nwriting results to {}'.format(args.out))
-    #     # mmcv.dump(outputs, args.out)
-    #     eval_types = args.eval
-    #     if eval_types:
-    #         print('Starting evaluate {}'.format(' and '.join(eval_types)))
-    #         if eval_types == ['proposal_fast']:
-    #             result_file = args.out
-    #             coco_eval(result_file, eval_types, dataset.coco)
-    #         else:
-    #             if not isinstance(outputs[0], dict):
-    #                 result_files = results2json(dataset, outputs, args.out)
-    #                 coco_eval(result_files, eval_types, dataset.coco)
-    #             else:
-    #                 for name in outputs[0]:
-    #                     print('\nEvaluating {}'.format(name))
-    #                     outputs_ = [out[name] for out in outputs]
-    #                     result_file = args.out + '.{}'.format(name)
-    #                     result_files = results2json(dataset, outputs_,
-    #                                                 result_file)
-    #                     coco_eval(result_files, eval_types, dataset.coco)
+    img = mmcv.imread(args.file)
+    device = next(model.parameters()).device  # model device
+    # build the data pipeline
+    test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
+    test_pipeline = Compose(test_pipeline)
+    # prepare data
+    data = dict(img=img)
+    data = test_pipeline(data)
+    data = scatter(collate([data], samples_per_gpu=1), [device])[0]
+    # forward the model
+    with torch.no_grad():
+        result = model(return_loss=False, rescale=True, **data)
 
-    # Save predictions in the COCO json format
-    # if args.json_out and rank == 0:
-    #     if not isinstance(outputs[0], dict):
-    #         results2json(dataset, outputs, args.json_out)
-    #     else:
-    #         for name in outputs[0]:
-    #             outputs_ = [out[name] for out in outputs]
-    #             result_file = args.json_out + '.{}'.format(name)
-    #             results2json(dataset, outputs_, result_file)
+    filename, _ = os.path.splitext(args.file)
+    vis_seg(data, result, cfg.img_norm_cfg, data_id='seg', colors=colors, score_thr=args.score_thr,
+            save_dir=filename)
+
 
 
 if __name__ == '__main__':

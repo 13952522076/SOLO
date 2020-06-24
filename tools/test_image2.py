@@ -220,7 +220,7 @@ def main():
     class_num = 1000  # ins
     colors = [(np.random.random((1, 3)) * 255).tolist()[0] for i in range(class_num)]
 
-    img = mmcv.imread(args.file).to(device)
+    img = mmcv.imread(args.file)
     # build the data pipeline
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)

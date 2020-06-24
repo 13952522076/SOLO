@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 import matplotlib.cm as cm
 
-def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
+def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr,score_thr_min, save_dir):
     img_tensor = data['img'][0]
     img_metas = data['img_meta'][0]
     imgs = tensor2imgs(img_tensor, **img_norm_cfg)
@@ -36,9 +36,9 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
         seg_label = seg_label.cpu().numpy().astype(np.uint8)
         cate_label = cur_result[1]
         cate_label = cate_label.cpu().numpy()
-        score = cur_result[2].cpu().numpy()
+        score = cur_result[2].cpu().numpy() # classification score
 
-        vis_inds = score > score_thr
+        vis_inds = score > score_thr_min
         seg_label = seg_label[vis_inds]
         num_mask = seg_label.shape[0]
         cate_label = cate_label[vis_inds]
@@ -66,13 +66,19 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
             color_mask = np.random.randint(
                 0, 256, (1, 3), dtype=np.uint8)
             cur_mask_bool = cur_mask.astype(np.bool)
-            seg_show[cur_mask_bool] = img_show[cur_mask_bool] * 0.5 + color_mask * 0.5
-
             cur_cate = cate_label[idx]
             cur_score = cate_score[idx]
 
-            label_text = class_names[cur_cate]
-            #label_text += '|{:.02f}'.format(cur_score)
+            if cur_score>=score_thr:
+                seg_show[cur_mask_bool] = img_show[cur_mask_bool] * 0.6 + color_mask * 0.4
+                label_text = class_names[cur_cate]
+            else:
+                seg_show[cur_mask_bool] = img_show[cur_mask_bool] * 0.4 + color_mask * 0.6
+                label_text = 'unknown'
+
+
+
+            label_text += '|{:.02f}'.format(cur_score)
             # center
             center_y, center_x = ndimage.measurements.center_of_mass(cur_mask)
             vis_pos = (max(int(center_x) - 10, 0), int(center_y))
@@ -82,9 +88,11 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MMDet test detector')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument('config', default='configs/solo/solo_r101_fpn_8gpu_3x.py', help='test config file path')
+    parser.add_argument('checkpoint', default='work_dirs/solo_release_r101_fpn_8gpu_3x/SOLO_R101_3x.pth', help='checkpoint file')
     parser.add_argument('--score_thr', type=float, default=0.3, help='score threshold for visualization')
+    parser.add_argument('--score_thr_min', type=float, default=0.2,
+                        help='score threshold for known objects (low confidence) visualization')
     parser.add_argument('--file', help='Image file')
     args = parser.parse_args()
     return args
@@ -121,7 +129,7 @@ def main():
         result = model(return_loss=False, rescale=True, **data)
     filename, _ = os.path.splitext(args.file)
     vis_seg(data, result, cfg.img_norm_cfg, data_id='seg', colors=colors, score_thr=args.score_thr,
-            save_dir=filename)
+            score_thr_min=args.score_thr_min, save_dir=filename)
 
 
 

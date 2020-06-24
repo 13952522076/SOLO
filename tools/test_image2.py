@@ -220,13 +220,13 @@ def main():
     class_num = 1000  # ins
     colors = [(np.random.random((1, 3)) * 255).tolist()[0] for i in range(class_num)]
 
-    img = mmcv.imread(args.file)
+    img = mmcv.imread(args.file).to(device)
     # build the data pipeline
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)
     # prepare data
     data = dict(img=img)
-    data = test_pipeline(data).to(device)
+    data = test_pipeline(data)
     data = scatter(collate([data], samples_per_gpu=1), [device])[0]
     # forward the model
     with torch.no_grad():

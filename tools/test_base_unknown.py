@@ -88,8 +88,8 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr,score_thr_min
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MMDet test detector')
-    parser.add_argument('config', default='configs/solo/solo_r101_fpn_8gpu_3x.py', help='test config file path')
-    parser.add_argument('checkpoint', default='work_dirs/solo_release_r101_fpn_8gpu_3x/SOLO_R101_3x.pth', help='checkpoint file')
+    parser.add_argument('--config', default='configs/solo/solo_r101_fpn_8gpu_3x.py', help='test config file path')
+    parser.add_argument('--checkpoint', default='work_dirs/solo_release_r101_fpn_8gpu_3x/SOLO_R101_3x.pth', help='checkpoint file')
     parser.add_argument('--score_thr', type=float, default=0.3, help='score threshold for visualization')
     parser.add_argument('--score_thr_min', type=float, default=0.2,
                         help='score threshold for known objects (low confidence) visualization')

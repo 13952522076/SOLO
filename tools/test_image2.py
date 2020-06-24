@@ -204,11 +204,14 @@ def parse_args():
 
 def main():
     args = parse_args()
+    device = device = 'cuda:0'
     cfg = mmcv.Config.fromfile(args.config)
     cfg.model.pretrained = None
     dataset = build_dataset(cfg.data.test)
     model = build_detector(cfg.model, test_cfg=cfg.test_cfg)
     checkpoint = load_checkpoint(model, args.checkpoint)
+    model = model.to(device)
+    model.eval()
     if 'CLASSES' in checkpoint['meta']:
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
@@ -218,14 +221,12 @@ def main():
     colors = [(np.random.random((1, 3)) * 255).tolist()[0] for i in range(class_num)]
 
     img = mmcv.imread(args.file)
-    device = next(model.parameters()).device  # model device
-    print(device)
     # build the data pipeline
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)
     # prepare data
     data = dict(img=img)
-    data = test_pipeline(data)
+    data = test_pipeline(data).to(device)
     data = scatter(collate([data], samples_per_gpu=1), [device])[0]
     # forward the model
     with torch.no_grad():

@@ -208,7 +208,7 @@ def main():
     cfg.model.pretrained = None
     dataset = build_dataset(cfg.data.test)
     model = build_detector(cfg.model, test_cfg=cfg.test_cfg)
-    checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
+    checkpoint = load_checkpoint(model, args.checkpoint)
     if 'CLASSES' in checkpoint['meta']:
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:

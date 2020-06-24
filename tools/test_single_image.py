@@ -75,7 +75,7 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
             cur_score = cate_score[idx]
 
             label_text = class_names[cur_cate]
-            #label_text += '|{:.02f}'.format(cur_score)
+            label_text += '|{:.02f}'.format(cur_score)
             # center
             center_y, center_x = ndimage.measurements.center_of_mass(cur_mask)
             vis_pos = (max(int(center_x) - 10, 0), int(center_y))

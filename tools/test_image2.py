@@ -78,125 +78,13 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
             vis_pos = (max(int(center_x) - 10, 0), int(center_y))
             cv2.putText(seg_show, label_text, vis_pos,
                         cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green
-        print("save_dir: {}".format(save_dir))
-        print("data_id: {}".format(data_id))
-        mmcv.imwrite(seg_show, '{}{}.jpg'.format(save_dir, data_id))
-
-
-def single_gpu_test(model, data_loader, args, cfg=None, verbose=True):
-    model.eval()
-    results = []
-    dataset = data_loader.dataset
-
-    class_num = 1000 # ins
-    colors = [(np.random.random((1, 3)) * 255).tolist()[0] for i in range(class_num)]    
-
-    prog_bar = mmcv.ProgressBar(len(dataset))
-    for i, data in enumerate(data_loader):
-        with torch.no_grad():
-            seg_result = model(return_loss=False, rescale=True, **data)
-            result = None
-        results.append(result)
-
-        if verbose:
-            vis_seg(data, seg_result, cfg.img_norm_cfg, data_id=i, colors=colors, score_thr=args.score_thr, save_dir=args.save_dir)
-
-        batch_size = data['img'][0].size(0)
-        for _ in range(batch_size):
-            prog_bar.update()
-    return results
-
-
-def multi_gpu_test(model, data_loader, tmpdir=None):
-    model.eval()
-    results = []
-    dataset = data_loader.dataset
-    rank, world_size = get_dist_info()
-    if rank == 0:
-        prog_bar = mmcv.ProgressBar(len(dataset))
-    for i, data in enumerate(data_loader):
-        with torch.no_grad():
-            result = model(return_loss=False, rescale=True, **data)
-        results.append(result)
-
-        if rank == 0:
-            batch_size = data['img'][0].size(0)
-            for _ in range(batch_size * world_size):
-                prog_bar.update()
-
-    # collect results from all ranks
-    results = collect_results(results, len(dataset), tmpdir)
-
-    return results
-
-
-def collect_results(result_part, size, tmpdir=None):
-    rank, world_size = get_dist_info()
-    # create a tmp dir if it is not specified
-    if tmpdir is None:
-        MAX_LEN = 512
-        # 32 is whitespace
-        dir_tensor = torch.full((MAX_LEN, ),
-                                32,
-                                dtype=torch.uint8,
-                                device='cuda')
-        if rank == 0:
-            tmpdir = tempfile.mkdtemp()
-            tmpdir = torch.tensor(
-                bytearray(tmpdir.encode()), dtype=torch.uint8, device='cuda')
-            dir_tensor[:len(tmpdir)] = tmpdir
-        dist.broadcast(dir_tensor, 0)
-        tmpdir = dir_tensor.cpu().numpy().tobytes().decode().rstrip()
-    else:
-        mmcv.mkdir_or_exist(tmpdir)
-    # dump the part result to the dir
-    mmcv.dump(result_part, osp.join(tmpdir, 'part_{}.pkl'.format(rank)))
-    dist.barrier()
-    # collect all parts
-    if rank != 0:
-        return None
-    else:
-        # load results of all parts from tmp dir
-        part_list = []
-        for i in range(world_size):
-            part_file = osp.join(tmpdir, 'part_{}.pkl'.format(i))
-            part_list.append(mmcv.load(part_file))
-        # sort the results
-        ordered_results = []
-        for res in zip(*part_list):
-            ordered_results.extend(list(res))
-        # the dataloader may pad some samples
-        ordered_results = ordered_results[:size]
-        # remove tmp dir
-        shutil.rmtree(tmpdir)
-        return ordered_results
-
+        mmcv.imwrite(seg_show, '{}_{}.jpg'.format(save_dir, data_id))
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MMDet test detector')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
-    parser.add_argument('--out', help='output result file')
-    parser.add_argument(
-        '--json_out',
-        help='output result file name without extension',
-        type=str)
-    parser.add_argument(
-        '--eval',
-        type=str,
-        nargs='+',
-        choices=['proposal', 'proposal_fast', 'bbox', 'segm', 'keypoints'],
-        help='eval types')
-    parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument('--score_thr', type=float, default=0.3, help='score threshold for visualization')
-    parser.add_argument('--tmpdir', help='tmp dir for writing some results')
-    parser.add_argument('--save_dir', help='dir for saveing visualized images')
-    parser.add_argument(
-        '--launcher',
-        choices=['none', 'pytorch', 'slurm', 'mpi'],
-        default='none',
-        help='job launcher')
-    parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--file', help='Image file')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
@@ -206,7 +94,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    device = device = 'cuda:0'
+    device = 'cuda:0'
     cfg = mmcv.Config.fromfile(args.config)
     cfg.model.pretrained = None
     dataset = build_dataset(cfg.data.test)
@@ -233,9 +121,7 @@ def main():
     # forward the model
     with torch.no_grad():
         result = model(return_loss=False, rescale=True, **data)
-
     filename, _ = os.path.splitext(args.file)
-    print("filename: {}".format(filename))
     vis_seg(data, result, cfg.img_norm_cfg, data_id='seg', colors=colors, score_thr=args.score_thr,
             save_dir=filename)
 

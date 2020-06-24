@@ -72,9 +72,11 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr,score_thr_min
             if cur_score>=score_thr:
                 seg_show[cur_mask_bool] = img_show[cur_mask_bool] * 0.6 + color_mask * 0.4
                 label_text = class_names[cur_cate]
+                font_color = (255,255,255)
             else:
                 seg_show[cur_mask_bool] = img_show[cur_mask_bool] * 0.4 + color_mask * 0.6
                 label_text = 'unknown'
+                font_color = (255, 128, 0)
 
 
 
@@ -83,7 +85,7 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr,score_thr_min
             center_y, center_x = ndimage.measurements.center_of_mass(cur_mask)
             vis_pos = (max(int(center_x) - 10, 0), int(center_y))
             cv2.putText(seg_show, label_text, vis_pos,
-                        cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green
+                        cv2.FONT_HERSHEY_COMPLEX, 0.3, font_color)  # green
         mmcv.imwrite(seg_show, '{}_{}.jpg'.format(save_dir, data_id))
 
 def parse_args():

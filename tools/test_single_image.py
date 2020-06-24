@@ -54,6 +54,9 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
         seg_label = seg_label[orders]
         cate_label = cate_label[orders]
         cate_score = cate_score[orders]
+        print("cate_label: {}".format(cate_label))
+        print("cate_score: {}".format(cate_score))
+        print("seg_label: {}".format(seg_label))
 
         seg_show = img_show.copy()
         for idx in range(num_mask):

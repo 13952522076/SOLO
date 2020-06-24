@@ -102,7 +102,8 @@ data = dict(
         pipeline=test_pipeline),
     personal=dict(
         type=dataset_type,
-        ann_file=None,
+        # not related, just avoid error.
+        ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix='data/personal/',
         pipeline=test_pipeline),
 )

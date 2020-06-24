@@ -26,11 +26,14 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
     assert len(imgs) == len(img_metas)
     class_names = get_classes('coco')
 
-    for img, img_meta, cur_result in zip(imgs, img_metas, result):
+    # for img, img_meta, cur_result in zip(imgs, img_metas, result):
+    for img, cur_result in zip(imgs, result):
         if cur_result is None:
             continue
-        h, w, _ = img_meta['img_shape']
-        img_show = img[:h, :w, :]
+        # h, w, _ = img_meta['img_shape']
+        # img_show = img[:h, :w, :]
+        img_show = img
+
         
         seg_label = cur_result[0]
         seg_label = seg_label.cpu().numpy().astype(np.uint8)

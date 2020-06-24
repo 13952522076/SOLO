@@ -23,7 +23,7 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
     img_tensor = data['img'][0]
     # img_metas = data['img_meta'][0].data[0]
     imgs = tensor2imgs(img_tensor, **img_norm_cfg)
-    assert len(imgs) == len(img_metas)
+    # assert len(imgs) == len(img_metas)
     class_names = get_classes('coco')
 
     # for img, img_meta, cur_result in zip(imgs, img_metas, result):

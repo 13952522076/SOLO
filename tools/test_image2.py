@@ -80,7 +80,7 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
                         cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green
         print("save_dir: {}".format(save_dir))
         print("data_id: {}".format(data_id))
-        mmcv.imwrite(seg_show, '{}/{}.jpg'.format(save_dir, data_id))
+        mmcv.imwrite(seg_show, '{}{}.jpg'.format(save_dir, data_id))
 
 
 def single_gpu_test(model, data_loader, args, cfg=None, verbose=True):

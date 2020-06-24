@@ -87,8 +87,6 @@ def parse_args():
     parser.add_argument('--score_thr', type=float, default=0.3, help='score threshold for visualization')
     parser.add_argument('--file', help='Image file')
     args = parser.parse_args()
-    if 'LOCAL_RANK' not in os.environ:
-        os.environ['LOCAL_RANK'] = str(args.local_rank)
     return args
 
 

@@ -205,6 +205,7 @@ def parse_args():
 def main():
     args = parse_args()
     cfg = mmcv.Config.fromfile(args.config)
+    cfg.model.pretrained = None
     dataset = build_dataset(cfg.data.test)
     model = build_detector(cfg.model, test_cfg=cfg.test_cfg)
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')

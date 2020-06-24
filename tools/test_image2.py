@@ -78,6 +78,8 @@ def vis_seg(data, result, img_norm_cfg, data_id, colors, score_thr, save_dir):
             vis_pos = (max(int(center_x) - 10, 0), int(center_y))
             cv2.putText(seg_show, label_text, vis_pos,
                         cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green
+        print("save_dir: {}".format(save_dir))
+        print("data_id: {}".format(data_id))
         mmcv.imwrite(seg_show, '{}/{}.jpg'.format(save_dir, data_id))
 
 
@@ -233,6 +235,7 @@ def main():
         result = model(return_loss=False, rescale=True, **data)
 
     filename, _ = os.path.splitext(args.file)
+    print("filename: {}".format(filename))
     vis_seg(data, result, cfg.img_norm_cfg, data_id='seg', colors=colors, score_thr=args.score_thr,
             save_dir=filename)
 
